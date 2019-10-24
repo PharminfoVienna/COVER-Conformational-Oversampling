@@ -96,6 +96,8 @@ Files which need to be supplied:
 *.json: The configuration file for the model training, please use the included file as a template
 
 cross_validate.py :
+
+```
 cross_validate.py [-h] [--out-base-dir OUT_BASE_DIR]
                          [--input-dir INPUT_DIR] [--config-file CONFIG_FILE]
                          [--gpus GPUS]
@@ -116,7 +118,7 @@ optional arguments:
                         will be visible for the training, at least 2 gpus need
                         to be specified!
 
-
+```
 runs the crossvalidation script, the following parameters are available
 
 | Parameter | Description | default value |
@@ -133,7 +135,7 @@ This script is called by the cross-validation script with all necessary paramete
 however it can also be used to train a single neural network, the following parameters have to be set:
 
 Script train_model.py
-
+```
 usage: train_model.py [-h] [--fold_number FOLD_NUMBER]
                       [--save_directory SAVE_DIRECTORY]
                       [--config_file CONFIG_FILE]
@@ -169,7 +171,7 @@ optional arguments:
   --save-model          Use this flag if the best model should be saved after
                         training
 
-
+```
 
 | Parameter | Description | default value |
 |-----------|-------------|---------------|
