@@ -1,0 +1,4 @@
+*.sdf
+*.swp
+__pycache__
+.idea

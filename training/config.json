@@ -1,0 +1,41 @@
+{
+  "Grid": {
+    "hidden_units": [
+      256,
+      512
+    ],
+    "learning_rate": [
+      0.01,
+      0.1
+    ],
+    "dropout_input": [
+      0,
+      0.2
+    ],
+    "dropout_hidden": [
+      0.2   
+    ],
+    "layers": [
+      2,3
+    ]
+  },
+  "Data":
+  {
+    "class_col": "activity",
+    "path": "/path/to/your.csv"
+  }
+  ,
+  "NN_params":
+  {
+    "seed": 42,
+    "batch_size": 2560,
+    "epochs": 200,
+    "pos_class_weight": 1,
+    "activation" : "relu",
+    "loss": "binary_crossentropy",
+    "optimizer": "SGD",
+    "momentum": 0.7,
+    "initializer": "he_normal"
+
+  }
+}
