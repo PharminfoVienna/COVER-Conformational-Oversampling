@@ -115,7 +115,7 @@ if __name__ == "__main__":
         train_cross_val_dir = os.path.abspath(train_cross_val_dir)
         make_dirs(final_cross_val_dir, train_cross_val_dir)
 
-        for grid_search_iter in itertools.chain(range(1, cross_val_iter), range(cross_val_iter + 1, 6)): # this skips the fold number of the outer loop
+        for grid_search_iter in itertools.chain(range(1, cross_val_iter), range(cross_val_iter + 1, 5)): # this skips the fold number of the outer loop
             grid_search_dir = os.path.join(train_cross_val_dir, "Inner_" + str(grid_search_iter))
             grid_search_dir = os.path.abspath(grid_search_dir)
             os.mkdir(grid_search_dir)
