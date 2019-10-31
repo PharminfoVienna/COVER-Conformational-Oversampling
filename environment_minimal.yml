@@ -1,0 +1,16 @@
+name: COVER
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pandas=0.23.4=py36hf8a1672_0
+  - pip=18.1=py36_1000
+  - python=3.6.6=h5001a0f_3
+  - rdkit=2018.09.1=py36h0c1dfbd_0
+  - numpy=1.14.3=py36h28100ab_1
+  - pip:
+    - keras==2.2.4
+    - scikit-learn==0.20.1
+    - tensorflow-gpu==1.12.0
+
+
