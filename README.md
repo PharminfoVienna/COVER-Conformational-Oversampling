@@ -88,6 +88,8 @@ optional arguments:
 The double cross-validation perfoms an inner cross-validation to get the best hyperparameter set and then retrains the model.
 In the outer loop the retrained model is then evaluated on unseen data. 
 In the outer loop the loop number indicates the fold which is used for testing (i.e. in Loop 1 Fold 1 is used for testing).
+The inner loop loop numbers indicate the file which is used to validate the inner model. For early stopping and to find the best model
+the balanced accuracy is used. 
 
 Please note that the input file needs to contain three columns (apart from the descriptor columns). 
 Namely :
@@ -114,18 +116,23 @@ Run_YYYY_MM_DD-HH_MM_SS
     ├── Loop_1
     ├── Loop_2
     ├── Loop_3
-    ├── Loop_4
-    └── Loop_5
+    └── Loop_4
+
 ```
-Code: Contains the code file which was run to build the model
-Data: Contains a csv file with all the different grid search conditions and the config *.json file supplied by the user
-Models folders: Contains data from the 4 trained models (inner loop)  and the final 5 models for the outer loop of the 5x4 crossvalidation
+Code:   
+Contains the code file which was run to build the model 
+ 
+Data:   
+Contains a csv file with all the different grid search conditions and the config *.json file supplied by the user  
+
+Models folders:   
+Contains data from the 4 trained models (inner loop)  and the final 5 models for the outer loop of the 5x4 crossvalidation
 The final models are saved, whereas for the inner loop only the settings and the log is saved. Models are saved as *.json files 
 and the weights in the respective *.h5 file. The csv files performance and performance_traceback store the model performances. 
 In the inner loop each file contains the performance per loop, i.e. to get the cross-validation estimate the 4 values have to be used
 to calculate the mean. The file performance_traceback indicates the performance when the metrics are not calculated using each conformation separately,
 but using the mean of all conformations of a molecule as the final prediction. 
-For early stopping, as well as to get the best model the metric balanced accuracy is used, and the performance is estimated using the traceback performance. 
+
 
 ## Using the Script
 ------------------------------
