@@ -7,7 +7,7 @@ import pandas as pd
 import shutil
 import sys
 import subprocess
-
+import itertools
 
 def make_dirs(*args):
     for arg in args:
@@ -46,9 +46,8 @@ def get_best_params(path):
 
 if __name__ == "__main__":
     TRAIN_GRID_SCRIPT = "train_model.py"
-    TRAIN_FINAL_SCRIPT = "train_final_model.py"
 
-    CODE_FILES = [TRAIN_FINAL_SCRIPT, TRAIN_GRID_SCRIPT, "cross_validate.py"]
+    CODE_FILES = [TRAIN_GRID_SCRIPT, "cross_validate.py"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--out-base-dir',
@@ -59,22 +58,22 @@ if __name__ == "__main__":
                         default=os.getcwd(),
                         help='Specify directory where source files are located, defaults to the directory where '
                              'the script is executed (os.getcwd())')
-    parser.add_argument('--config-file',
+    parser.add_argument('--config-file', '-cf',
                         default=os.path.join(os.getcwd(), "config.json"),
                         help='Specify config JSON to train models with')
     parser.add_argument('--gpus',
                         default="0,1",
                         help='Which gpus to use for training, only the specfied gpus will be visible for the training, '
-                             'at least 2 gpus need to be specified!')
+                             'at least 2 gpus need to be specified!',)
     input_args = parser.parse_args()
 
     # TODO maybe add verbosity /debug option ?
 
-    if not os.path.isdir(input_args.out_base_dir):
-        print(" Option --out-base-dir is not directory")
+    if not os.path.isdir(os.path.abspath(input_args.out_base_dir)):
+        print(" Option --out-base-dir is not a directory")
         sys.exit(1)
     if not os.path.isdir(input_args.input_dir):
-        print(" Option --input-dir is not directory")
+        print(" Option --input-dir is not a directory")
         sys.exit(1)
     for file in CODE_FILES:
         if not os.path.isfile(os.path.join(input_args.input_dir, file)):
@@ -92,7 +91,7 @@ if __name__ == "__main__":
         print(" Option --config-file is not a file")
         sys.exit(1)
 
-    output_base_dir = input_args.out_base_dir
+    output_base_dir = os.path.abspath(input_args.out_base_dir)
     output_dir = os.path.join(output_base_dir, "Run_" + datetime.datetime.now().strftime('%Y_%m_%d__%H_%M_%S'))
     code_dir = os.path.join(output_dir, "code")
     data_dir = os.path.join(output_dir, "data")
@@ -116,20 +115,21 @@ if __name__ == "__main__":
         train_cross_val_dir = os.path.abspath(train_cross_val_dir)
         make_dirs(final_cross_val_dir, train_cross_val_dir)
 
-        for grid_search_iter in range(1, 4):
+        for grid_search_iter in itertools.chain(range(1, cross_val_iter), range(cross_val_iter + 1, 6)): # this skips the fold number of the outer loop
             grid_search_dir = os.path.join(train_cross_val_dir, "Inner_" + str(grid_search_iter))
             grid_search_dir = os.path.abspath(grid_search_dir)
             os.mkdir(grid_search_dir)
-
+            print(code_dir)
             for grid_row in grid.itertuples():
                 subprocess.call(["python", TRAIN_GRID_SCRIPT,
-                                 '--fold_number', str(cross_val_iter) + str(grid_search_iter),
-                                 '--save_directory', grid_search_dir,
-                                 '--config_file', os.path.abspath(os.path.join(data_dir, config_filename)),
-                                 '--hidden_units', str(grid_row.hidden_units),
-                                 '--learning_rate', str(grid_row.learning_rate),
-                                 '--dropout_input', str(grid_row.dropout_input),
-                                 '--dropout_hidden', str(grid_row.dropout_hidden),
+                                 '--test-fold',  str(grid_search_iter),
+                                 '--drop-fold', str(cross_val_iter), # drop the fold of the outer CV, to use it later
+                                 '--save-directory', grid_search_dir,
+                                 '--config-file', os.path.abspath(os.path.join(data_dir, config_filename)),
+                                 '--hidden-units', str(grid_row.hidden_units),
+                                 '--learning-rate', str(grid_row.learning_rate),
+                                 '--dropout-input', str(grid_row.dropout_input),
+                                 '--dropout-hidden', str(grid_row.dropout_hidden),
                                  '--layers', str(grid_row.layers),
                                  '--gpus', input_args.gpus],
                                 cwd=code_dir)
@@ -138,13 +138,14 @@ if __name__ == "__main__":
             train_cross_val_dir + "/performance_traceback.csv")
 
         subprocess.call(["python", TRAIN_GRID_SCRIPT,
-                         '--fold_number', str(cross_val_iter) + str(0),
-                         '--save_directory', final_cross_val_dir,
-                         '--config_file', os.path.abspath(os.path.join(data_dir, config_filename)),
-                         '--hidden_units', str(hidden_units),
-                         '--learning_rate', str(learning_rate),
-                         '--dropout_input', str(dropout_input),
-                         '--dropout_hidden', str(dropout_hidden),
+                         '--test-fold', str(cross_val_iter),
+                         '--drop-fold', '0',   # no fold is dropped, we use all to train the model
+                         '--save-directory', final_cross_val_dir,
+                         '--config-file', os.path.abspath(os.path.join(data_dir, config_filename)),
+                         '--hidden-units', str(hidden_units),
+                         '--learning-rate', str(learning_rate),
+                         '--dropout-input', str(dropout_input),
+                         '--dropout-hidden', str(dropout_hidden),
                          '--layers', str(layers),
                          '--gpus', input_args.gpus,
                          '--save-model'],
