@@ -2,3 +2,5 @@
 *.swp
 __pycache__
 .idea
+./runs
+config_test.json
