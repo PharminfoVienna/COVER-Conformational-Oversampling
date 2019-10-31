@@ -33,7 +33,8 @@ def create_model(inp, hid, drop_in, drop_hid, activation, layers, initializer):
     keras model: a trainable keras model
     """
     model = Sequential()
-    model.add(Dense(hid, input_shape=(int(inp),), activation=activation, kernel_initializer=initializer, bias_initializer=initializer))
+    model.add(Dense(hid, input_shape=(int(inp),), activation=activation, kernel_initializer=initializer,
+                    bias_initializer=initializer))
     model.add(Dropout(drop_in))
     for i in range(layers):
         model.add(Dense(hid, activation=activation, bias_initializer=initializer, kernel_initializer=initializer))
@@ -41,7 +42,8 @@ def create_model(inp, hid, drop_in, drop_hid, activation, layers, initializer):
     model.add(Dense(1, activation="sigmoid"))
     return model
 
-def load_data(n,path, col = 'Fold', ):
+
+def load_data(testfold, dropfold, path, col='Fold'):
     """loads data according to a column called Trainingset_n where it is specified
     which compound belongs to training and testset
 
@@ -54,29 +56,29 @@ def load_data(n,path, col = 'Fold', ):
     """
     data = pd.read_csv(path)
     data = data.set_index("Reference")
-    outer, inner = [int(i) for i in str(n)] #split in inner and outer loop no
 
-    if inner > 0:
-        fold_indices = [1, 2, 3, 4, 5]
-        fold_indices.remove(outer)
-        inner = fold_indices[inner-1]  # get fold which will be used as test set for the crossvalidation
-        data = data[data[col] != outer]  # drop external test set
+    if dropfold > 0:  # get fold which will be used as test set for the crossvalidation
+        data = data[data[col] != dropfold]  # drop external test set
         data = data.dropna()
-        train = data.loc[data[col] != inner].select_dtypes(include=['number'])
-        test = data.loc[data[col] == inner].select_dtypes(include=['number'])
+        train = data.loc[data[col] != testfold].select_dtypes(include=['number'])
+        test = data.loc[data[col] == testfold].select_dtypes(include=['number'])
 
-        train = train.drop(['Clusters', 'Fold'], axis=1)
-        test = test.drop(['Clusters', 'Fold'], axis=1)
+        train = train.drop(['Clusters'], axis=1, errors='ignore')
+        train = train.drop(['Fold'], axis=1)
+        test = test.drop(['Clusters'], axis=1, errors='ignore')
+        test = test.drop(['Fold'], axis=1)
 
         return train, test
     else:
         data = data.dropna()
 
-        train = data.loc[data[col] != outer].select_dtypes(include=['number'])
-        test = data.loc[data[col] == outer].select_dtypes(include=['number'])
+        train = data.loc[data[col] != testfold].select_dtypes(include=['number'])
+        test = data.loc[data[col] == testfold].select_dtypes(include=['number'])
 
-        train = train.drop(['Clusters', 'Fold'], axis=1)
-        test = test.drop(['Clusters', 'Fold'], axis=1)
+        train = train.drop(['Clusters'], axis=1, errors='ignore')
+        train = train.drop(['Fold'], axis=1)
+        test = test.drop(['Clusters'], axis=1, errors='ignore')
+        test = test.drop(['Fold'], axis=1)
 
         return train, test
 
@@ -98,7 +100,6 @@ def build_masked_loss(loss_function, mask_value):
         mask = K.cast(K.not_equal(y_true, mask_value), K.floatx())
 
         return loss_function(y_true * mask, y_pred * mask)
-
 
     return masked_loss_function
 
@@ -188,8 +189,10 @@ class BalancedAccuracyCallback(Callback):
 
     def on_train_end(self, logs={}):
         if self.save:
-            my_store_path = os.path.abspath("".join([self.curr_dir,"/Model_weights_Epoch",str(self.saveepoch),".h5"]))
-            my_json_path = os.path.abspath("".join([self.curr_dir, "/Model_architecture_Epoch", str(self.saveepoch), ".json"]))
+            my_store_path = os.path.abspath(
+                "".join([self.curr_dir, "/Model_weights_Epoch", str(self.saveepoch), ".h5"]))
+            my_json_path = os.path.abspath(
+                "".join([self.curr_dir, "/Model_architecture_Epoch", str(self.saveepoch), ".json"]))
             self.best_model.save_weights(my_store_path)
             with open(my_json_path, 'w') as outfile:
                 json.dump(self.best_model.to_json(), outfile)
@@ -218,10 +221,11 @@ class BalancedAccuracyCallback(Callback):
                 return bal_acc, bal_acc_grp
             else:
                 return bal_acc, bal_acc
+
         # Performance
         pred = self.model.predict(self.x)
         pred_val = self.model.predict(self.x_val)
-        ba_y , ba_y_tb = _pred_bal_acc(self.y, pred , True, self.y)
+        ba_y, ba_y_tb = _pred_bal_acc(self.y, pred, True, self.y)
         ba_y_val, ba_y_val_tb = _pred_bal_acc(self.y_val, pred_val, True, self.y_val)
 
         print('\rbalanced_accuracy_score: %s - balanced_accuracy_score_val: %s'
@@ -255,29 +259,32 @@ class BalancedAccuracyCallback(Callback):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fold_number', default=1, type=int,
-                        help='Specifies the fold which should be used to validate the models (default is 1)')
-    parser.add_argument('--save_directory', default =os.getcwd(), type=str,
-                        help='Specifies the directory to save files in that directory it will create a foler Run_* '
+    parser.add_argument('--test-fold', default=1, type=int,
+                        help='Specifies the fold which should be used to validate the models, defaults to 1')
+    parser.add_argument('--drop-fold', default=0, type=int,
+                        help='Specifies a fold which should be dropped, e.g. if it should be used later for external testing, '
+                             'defaults to 0 (i.e. no fold is dropped)')
+    parser.add_argument('--save-directory', default=os.getcwd(), type=str,
+                        help='Specifies the directory to save files in that directory it will create a folder Run_* '
                              'where * is dependent on the hyperparameters, '
                              'defaults to the directory where the script is executed (os.getcwd())')
-    parser.add_argument('--config_file', type=str,
+    parser.add_argument('--config-file', type=str,
                         default=os.path.join(os.getcwd(), "config.json"),
                         help='Specifies config JSON to train models with')
-    parser.add_argument('--hidden_units', type=int,
-                        default = 1024,
+    parser.add_argument('--hidden-units', type=int,
+                        default=1024,
                         help='Specifies the number of hidden units, default is 2')
-    parser.add_argument('--learning_rate', type=float,
-                        default = 0.1,
+    parser.add_argument('--learning-rate', type=float,
+                        default=0.1,
                         help='Specifies the learning rate, default is 0.1')
-    parser.add_argument('--dropout_input', type=float,
-                        default = 0.2,
+    parser.add_argument('--dropout-input', type=float,
+                        default=0.2,
                         help='Specifies the dropout rate for the input layer, default is 0.2')
-    parser.add_argument('--dropout_hidden', type=float,
-                        default = 0.5,
+    parser.add_argument('--dropout-hidden', type=float,
+                        default=0.5,
                         help='Specifies the row of dropout rate for hidden layers, default is 0.5')
     parser.add_argument('--layers', type=int,
-                        default = 2,
+                        default=2,
                         help='Specifies the number of hidden layers, default is 2')
     parser.add_argument('--gpus', type=str,
                         default="0,1",
@@ -289,11 +296,9 @@ if __name__ == "__main__":
 
     input_args = parser.parse_args()
 
-
-    #CUDA visible devices
+    # CUDA visible devices
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # order devices
     os.environ["CUDA_VISIBLE_DEVICES"] = input_args.gpus
-
 
     # create paths and dirs to save
     curr_dir = input_args.save_directory
@@ -315,61 +320,56 @@ if __name__ == "__main__":
     seed = nn_params["seed"]
 
     # seed model
-
     os.environ['PYTHONHASHSEED'] = '0'
     np.random.seed(seed)
     rn.seed(seed)
     tf.set_random_seed(seed)
 
-
     # Load data
-
-    d_train,d_test = load_data(n=input_args.fold_number, path=data_directory)
+    d_train, d_test = load_data(testfold=input_args.test_fold, dropfold=input_args.drop_fold, path=data_directory)
     x = d_train.drop(class_col, axis=1)
     y = d_train[class_col]
     x_val = d_test.drop(class_col, axis=1)
     y_val = d_test[class_col]
     keys = grid_data.keys()
 
-
     # Scale data
-
     scaler = MinMaxScaler().fit(X=x)
     x = scaler.transform(x)
     x_val = scaler.transform(x_val)
 
     # save seed
-
     seed = list(np.random.get_state())
     with open("".join([savedir, "/seed.csv"]), 'w') as f:
         f.write('\n'.join(str(e) for e in seed))
 
     # Create callbacks
-
     csv_log = CSVLogger("".join([savedir, "/log.csv"]), separator=',', append=False)
-    roc = BalancedAccuracyCallback(training_data=(x, y), validation_data=(x_val, y_val), prms=params, patience=15, save=input_args.save_model, savedir = savedir)
+    roc = BalancedAccuracyCallback(training_data=(x, y), validation_data=(x_val, y_val), prms=params, patience=15,
+                                   save=input_args.save_model, savedir=savedir)
 
     # Create Model
-
     loss = getattr(losses, nn_params["loss"])
     masked_loss = build_masked_loss(loss, -1)
 
     model = create_model(inp=int(x.shape[1]), hid=input_args.hidden_units, drop_in=input_args.dropout_input,
-                         drop_hid=input_args.dropout_hidden, activation=nn_params["activation"],layers=input_args.layers,
-                         initializer = nn_params['initializer'])
+                         drop_hid=input_args.dropout_hidden, activation=nn_params["activation"],
+                         layers=input_args.layers,
+                         initializer=nn_params['initializer'])
     model = multi_gpu_model(model, gpus=2)
-    model.compile(loss=masked_loss, optimizer=optimizers.SGD(lr=input_args.learning_rate, momentum=nn_params['momentum']),
+    model.compile(loss=masked_loss,
+                  optimizer=optimizers.SGD(lr=input_args.learning_rate, momentum=nn_params['momentum']),
                   metrics=["accuracy"])
 
     hist = model.fit(x=x, y=y, validation_data=(x_val, y_val), batch_size=nn_params["batch_size"],
-              epochs=nn_params["epochs"], verbose=0,
+                     epochs=nn_params["epochs"], verbose=0,
                      callbacks=[roc, csv_log])
     pd.DataFrame(hist.params).to_csv("".join([savedir, "/params.csv"]))
 
     # Evaluate Model
-    ## on all datapoints separately
+    # on all datapoints separately
     pred = roc.best_model.predict(x=x_val)
-    perf = evaluate(y_val,pred)
+    perf = evaluate(y_val, pred)
     perf = pd.DataFrame(perf, index=[params])
     store_path = os.path.abspath("".join([curr_dir, "/../performance.csv"]))
 
@@ -378,7 +378,7 @@ if __name__ == "__main__":
     else:
         perf.to_csv(store_path)
 
-    ## on mean of predictions for one compound
+    # on mean of predictions for one compound
     pred_tb = roc.best_model.predict(x=x_val)
     pred_tb = pd.DataFrame(pred_tb)
     pred_tb = pred_tb.groupby(y_val.index).mean()
@@ -392,7 +392,3 @@ if __name__ == "__main__":
         perf.to_csv(store_path, mode='a', header=False)
     else:
         perf.to_csv(store_path)
-
-
-
-
